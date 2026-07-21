@@ -28,14 +28,21 @@ class Review:
 def get_connection():
     import snowflake.connector  # imported lazily so this module loads fine even before the package is installed
 
-    conn = snowflake.connector.connect(
+    connect_kwargs = dict(
         account=config.SNOWFLAKE_ACCOUNT,
         user=config.SNOWFLAKE_USER,
-        password=config.SNOWFLAKE_PASSWORD,
         warehouse=config.SNOWFLAKE_WAREHOUSE,
         database=config.SNOWFLAKE_DATABASE,
         schema=config.SNOWFLAKE_SCHEMA,
     )
+    if config.SNOWFLAKE_AUTHENTICATOR == "externalbrowser":
+        # SSO: opens a browser window for login the first time in a session;
+        # no password needed or stored.
+        connect_kwargs["authenticator"] = "externalbrowser"
+    else:
+        connect_kwargs["password"] = config.SNOWFLAKE_PASSWORD
+
+    conn = snowflake.connector.connect(**connect_kwargs)
     try:
         yield conn
     finally:

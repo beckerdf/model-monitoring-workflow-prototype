@@ -20,10 +20,15 @@ REVIEW_STATUS_PATH = Path(os.environ.get(
 # --- Snowflake connection (system of record) ---
 SNOWFLAKE_ACCOUNT = os.environ.get("SNOWFLAKE_ACCOUNT", "")
 SNOWFLAKE_USER = os.environ.get("SNOWFLAKE_USER", "")
+# SSO by default (DB logs in via SSO) -- no password needed/stored.
+# Set SNOWFLAKE_AUTHENTICATOR=password and SNOWFLAKE_PASSWORD if a service
+# account with password auth is used later (e.g. for the unattended
+# scheduled job, since SSO needs an interactive browser login).
+SNOWFLAKE_AUTHENTICATOR = os.environ.get("SNOWFLAKE_AUTHENTICATOR", "externalbrowser")
 SNOWFLAKE_PASSWORD = os.environ.get("SNOWFLAKE_PASSWORD", "")
 SNOWFLAKE_WAREHOUSE = os.environ.get("SNOWFLAKE_WAREHOUSE", "")
-SNOWFLAKE_DATABASE = os.environ.get("SNOWFLAKE_DATABASE", "MODEL_GOVERNANCE")
-SNOWFLAKE_SCHEMA = os.environ.get("SNOWFLAKE_SCHEMA", "MONITORING_WORKFLOW")
+SNOWFLAKE_DATABASE = os.environ.get("SNOWFLAKE_DATABASE", "EDP_PRD_WSP")
+SNOWFLAKE_SCHEMA = os.environ.get("SNOWFLAKE_SCHEMA", "VPP_ANALYTICS")
 
 REVIEW_INVENTORY_TABLE = f"{SNOWFLAKE_DATABASE}.{SNOWFLAKE_SCHEMA}.REVIEW_INVENTORY"
 

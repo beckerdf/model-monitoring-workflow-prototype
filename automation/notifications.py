@@ -1,8 +1,8 @@
 """
 Notifications: assignment, reminder, and escalation emails.
 
-Uses the same Graph API app registration as graph_mailbox.py to send mail
-as the governance/automation account. Blocked on the same IT dependency.
+Sends as DB's own mailbox (delegated auth, same token as graph_mailbox.py)
+for now -- interim setup until/unless a dedicated shared mailbox exists.
 """
 import requests
 
@@ -21,7 +21,7 @@ def _send_mail(to: list[str], cc: list[str], subject: str, body: str) -> None:
             "ccRecipients": [{"emailAddress": {"address": a}} for a in cc],
         }
     }
-    url = f"{GRAPH_BASE_URL}/users/{config.GOVERNANCE_MAILBOX}/sendMail"
+    url = f"{GRAPH_BASE_URL}/me/sendMail"
     resp = requests.post(url, headers=headers, json=message)
     resp.raise_for_status()
 

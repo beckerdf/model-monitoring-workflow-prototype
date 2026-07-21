@@ -28,10 +28,19 @@ SNOWFLAKE_SCHEMA = os.environ.get("SNOWFLAKE_SCHEMA", "MONITORING_WORKFLOW")
 REVIEW_INVENTORY_TABLE = f"{SNOWFLAKE_DATABASE}.{SNOWFLAKE_SCHEMA}.REVIEW_INVENTORY"
 
 # --- Mailbox (Microsoft Graph API) ---
+# Interim setup: monitoring DB's own TFS mailbox rather than a dedicated
+# shared governance mailbox, to avoid requesting a new mailbox + app-only
+# permissions from IT. This uses DELEGATED auth (DB signs in once, acting
+# as himself) rather than application permissions (which would need admin
+# approval to read/send from any mailbox in the tenant). Revisit once/if
+# a real shared mailbox is set up -- at that point this reverts to the
+# app-only pattern originally scoped.
 GRAPH_TENANT_ID = os.environ.get("GRAPH_TENANT_ID", "")
 GRAPH_CLIENT_ID = os.environ.get("GRAPH_CLIENT_ID", "")
-GRAPH_CLIENT_SECRET = os.environ.get("GRAPH_CLIENT_SECRET", "")
-GOVERNANCE_MAILBOX = os.environ.get("GOVERNANCE_MAILBOX", "modelgovernance@tfs.com")
+MONITORED_MAILBOX = os.environ.get("MONITORED_MAILBOX", "")  # DB's own TFS email address
+GOVERNANCE_SENDER_FILTER = os.environ.get(
+    "GOVERNANCE_SENDER_FILTER", ""
+)  # governance's from-address, so we only pick up their emails, not everything in the inbox
 
 # --- Notification routing ---
 NATIONAL_MANAGER_EMAILS = [

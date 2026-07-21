@@ -45,7 +45,6 @@ def process_new_governance_emails() -> None:
             continue
 
         review_id = review_inventory.create_review(
-            archer_model_number=parsed.archer_model_number,
             model_name=parsed.model_name,
             assigned_ds_email=assignee.email,
             assigned_ds_name=assignee.full_name,

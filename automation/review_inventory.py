@@ -13,8 +13,8 @@ from . import config
 @dataclass
 class Review:
     review_id: str
-    archer_model_number: str
     model_name: str
+    archer_model_number: Optional[str]
     assigned_ds_email: str
     assigned_ds_name: str
     start_date: date
@@ -51,12 +51,12 @@ def _log_event(cursor, review_id: str, event_type: str, detail: str = "") -> Non
 
 
 def create_review(
-    archer_model_number: str,
     model_name: str,
     assigned_ds_email: str,
     assigned_ds_name: str,
     start_date: date,
     due_date: date,
+    archer_model_number: Optional[str] = None,
     assigned_by: str = "Auto",
 ) -> str:
     """Insert a new review, auto-assigned by the rotation logic. Returns the new REVIEW_ID."""
@@ -64,16 +64,16 @@ def create_review(
         cur = conn.cursor()
         cur.execute(
             f"""INSERT INTO {config.REVIEW_INVENTORY_TABLE}
-                (ARCHER_MODEL_NUMBER, MODEL_NAME, ASSIGNED_DS_EMAIL, ASSIGNED_DS_NAME,
+                (MODEL_NAME, ARCHER_MODEL_NUMBER, ASSIGNED_DS_EMAIL, ASSIGNED_DS_NAME,
                  START_DATE, DUE_DATE, STATUS, ASSIGNED_BY)
                 VALUES (%s, %s, %s, %s, %s, %s, 'Not Started', %s)""",
-            (archer_model_number, model_name, assigned_ds_email, assigned_ds_name,
+            (model_name, archer_model_number, assigned_ds_email, assigned_ds_name,
              start_date, due_date, assigned_by),
         )
         cur.execute(
             f"""SELECT REVIEW_ID FROM {config.REVIEW_INVENTORY_TABLE}
-                WHERE ARCHER_MODEL_NUMBER = %s ORDER BY CREATED_AT DESC LIMIT 1""",
-            (archer_model_number,),
+                WHERE MODEL_NAME = %s ORDER BY CREATED_AT DESC LIMIT 1""",
+            (model_name,),
         )
         review_id = cur.fetchone()[0]
         _log_event(cur, review_id, "assigned", f"Auto-assigned to {assigned_ds_name}")
@@ -86,7 +86,7 @@ def get_open_reviews() -> list[Review]:
     with get_connection() as conn:
         cur = conn.cursor()
         cur.execute(
-            f"""SELECT REVIEW_ID, ARCHER_MODEL_NUMBER, MODEL_NAME, ASSIGNED_DS_EMAIL,
+            f"""SELECT REVIEW_ID, MODEL_NAME, ARCHER_MODEL_NUMBER, ASSIGNED_DS_EMAIL,
                        ASSIGNED_DS_NAME, START_DATE, DUE_DATE, STATUS, COMPLETION_DATE, ASSIGNED_BY
                 FROM {config.REVIEW_INVENTORY_TABLE}
                 WHERE STATUS != 'Complete'"""

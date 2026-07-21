@@ -1,45 +1,46 @@
 """
-Email parser: pulls Archer Model Number, Model Name, Start Date, and Due Date
-out of the governance-generated email body.
+Email parser: pulls the Model Record Name and Start Date out of the
+Archer-generated "Model Monitoring Notification" email, and computes a
+due date from a fixed monitoring-cycle length.
 
-*** PLACEHOLDER — REPLACE ONCE THE REAL ARCHER EMAIL TEMPLATE ARRIVES ***
+*** ASSUMPTION TO CONFIRM: 49-day (7-week) cycle from start to due date. ***
+This was inferred from three real start/due pairs in an Archer report (all
+exactly 49 days apart, regardless of risk rating) -- not confirmed as an
+official policy. Update DEFAULT_CYCLE_DAYS below once confirmed, or replace
+the whole due-date calculation if it turns out to vary by risk rating or
+model type.
 
-This is built against our best guess of the format, based on the fields
-governance has confirmed will be present (Archer Model #, Model Name,
-Start in Archer, Final Due Date). The actual subject line and body layout
-may differ. When the real email lands:
+*** REAL EMAIL FORMAT (confirmed 7/2026) ***
+This is an "Awareness" notification, not an assignment request -- Archer
+sends it to the Model Owner + CC'd stakeholders, with no due date and no
+model number in the body. Subject line:
+  "Model Monitoring Notification - Submitted for Model Owner and Model
+   Reviewer Lead, Awareness"
+Body contains only:
+  "You are receiving this notification as the model monitoring process is
+   scheduled to start on: <date>"
+  "Model Record Name: <name>"
 
-  1. Save a sample (redact model specifics if needed) into
-     tests/fixtures/sample_governance_email.txt
-  2. Update the regex patterns below to match the real format
-  3. Re-run tests/test_email_parser.py against the real sample — it should
-     pass once the patterns are correct
-
-Everything downstream (rotation_queue, review_inventory, status_sync) does
-NOT depend on this module's internals — only on the ParsedReview fields it
-returns. So fixing this one file is the entire blast radius of the template
-finally arriving.
+There is no Archer Model Number in this email -- Model Record Name is the
+only identifier available, so it's used as the key downstream instead.
 """
 import re
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
+
+DEFAULT_CYCLE_DAYS = 49  # ASSUMPTION -- confirm with governance
 
 
 @dataclass
 class ParsedReview:
-    archer_model_number: str
     model_name: str
     start_date: date
     due_date: date
 
 
-# Best-guess patterns based on fields confirmed with governance so far.
-# UPDATE THESE once we have a real sample email.
 PATTERNS = {
-    "archer_model_number": re.compile(r"Archer Model\s*#?:?\s*([A-Za-z0-9\-]+)", re.IGNORECASE),
-    "model_name": re.compile(r"Model Name:?\s*(.+)", re.IGNORECASE),
-    "start_date": re.compile(r"Start (?:in Archer|Date):?\s*([\d/\-]+)", re.IGNORECASE),
-    "due_date": re.compile(r"(?:Final )?Due Date:?\s*([\d/\-]+)", re.IGNORECASE),
+    "model_name": re.compile(r"Model Record Name:?\s*([^\n\r]+)", re.IGNORECASE),
+    "start_date": re.compile(r"scheduled to start on:?\s*([\d/\-]+)", re.IGNORECASE),
 }
 
 
@@ -53,11 +54,13 @@ def _parse_date(raw: str) -> date:
     raise ValueError(f"Could not parse date: {raw!r}")
 
 
-def parse_email_body(body: str) -> ParsedReview:
+def parse_email_body(body: str, cycle_days: int = DEFAULT_CYCLE_DAYS) -> ParsedReview:
     """
-    Extract the four required fields from a governance email body.
-    Raises ValueError with a clear message if any field can't be found --
-    fail loudly rather than silently assign against bad data.
+    Extract the model name and start date from a governance notification
+    email body, and compute a due date using the fixed cycle-length
+    assumption. Raises ValueError with a clear message if a required
+    field can't be found -- fail loudly rather than silently assign
+    against bad data.
     """
     values = {}
     for field, pattern in PATTERNS.items():
@@ -65,14 +68,15 @@ def parse_email_body(body: str) -> ParsedReview:
         if not match:
             raise ValueError(
                 f"Could not find '{field}' in email body. "
-                f"This likely means the email format doesn't match our current "
-                f"assumptions -- see the module docstring for how to update the patterns."
+                f"This likely means the email format has changed from what "
+                f"we've confirmed -- see the module docstring for the expected format."
             )
         values[field] = match.group(1).strip()
 
+    start_date = _parse_date(values["start_date"])
+
     return ParsedReview(
-        archer_model_number=values["archer_model_number"],
         model_name=values["model_name"],
-        start_date=_parse_date(values["start_date"]),
-        due_date=_parse_date(values["due_date"]),
+        start_date=start_date,
+        due_date=start_date + timedelta(days=cycle_days),
     )

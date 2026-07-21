@@ -26,7 +26,7 @@ class Review:
 
 @contextmanager
 def get_connection():
-    import snowflake.connector  # imported lazily so this module loads fine even before the package is installed
+    import snowflake.connector
 
     connect_kwargs = dict(
         account=config.SNOWFLAKE_ACCOUNT,
@@ -34,13 +34,9 @@ def get_connection():
         warehouse=config.SNOWFLAKE_WAREHOUSE,
         database=config.SNOWFLAKE_DATABASE,
         schema=config.SNOWFLAKE_SCHEMA,
+        role=config.SNOWFLAKE_ROLE,
+        authenticator=config.SNOWFLAKE_AUTHENTICATOR,
     )
-    if config.SNOWFLAKE_AUTHENTICATOR == "externalbrowser":
-        # SSO: opens a browser window for login the first time in a session;
-        # no password needed or stored.
-        connect_kwargs["authenticator"] = "externalbrowser"
-    else:
-        connect_kwargs["password"] = config.SNOWFLAKE_PASSWORD
 
     conn = snowflake.connector.connect(**connect_kwargs)
     try:
@@ -66,7 +62,6 @@ def create_review(
     archer_model_number: Optional[str] = None,
     assigned_by: str = "Auto",
 ) -> str:
-    """Insert a new review, auto-assigned by the rotation logic. Returns the new REVIEW_ID."""
     with get_connection() as conn:
         cur = conn.cursor()
         cur.execute(
@@ -85,64 +80,4 @@ def create_review(
         review_id = cur.fetchone()[0]
         _log_event(cur, review_id, "assigned", f"Auto-assigned to {assigned_ds_name}")
         conn.commit()
-        return review_id
-
-
-def get_open_reviews() -> list[Review]:
-    """All reviews not yet Complete — used for reminder/escalation checks."""
-    with get_connection() as conn:
-        cur = conn.cursor()
-        cur.execute(
-            f"""SELECT REVIEW_ID, MODEL_NAME, ARCHER_MODEL_NUMBER, ASSIGNED_DS_EMAIL,
-                       ASSIGNED_DS_NAME, START_DATE, DUE_DATE, STATUS, COMPLETION_DATE, ASSIGNED_BY
-                FROM {config.REVIEW_INVENTORY_TABLE}
-                WHERE STATUS != 'Complete'"""
-        )
-        return [Review(*row) for row in cur.fetchall()]
-
-
-def update_status(review_id: str, new_status: str) -> None:
-    with get_connection() as conn:
-        cur = conn.cursor()
-        completion_date = "CURRENT_DATE()" if new_status == "Complete" else "NULL"
-        cur.execute(
-            f"""UPDATE {config.REVIEW_INVENTORY_TABLE}
-                SET STATUS = %s, COMPLETION_DATE = {completion_date}, UPDATED_AT = CURRENT_TIMESTAMP()
-                WHERE REVIEW_ID = %s""",
-            (new_status, review_id),
-        )
-        _log_event(cur, review_id, "status_changed", f"Status -> {new_status}")
-        conn.commit()
-
-
-def reassign(review_id: str, new_ds_email: str, new_ds_name: str) -> None:
-    with get_connection() as conn:
-        cur = conn.cursor()
-        cur.execute(
-            f"""UPDATE {config.REVIEW_INVENTORY_TABLE}
-                SET ASSIGNED_DS_EMAIL = %s, ASSIGNED_DS_NAME = %s,
-                    ASSIGNED_BY = 'Manager Override', UPDATED_AT = CURRENT_TIMESTAMP()
-                WHERE REVIEW_ID = %s""",
-            (new_ds_email, new_ds_name, review_id),
-        )
-        _log_event(cur, review_id, "reassigned", f"Reassigned to {new_ds_name}")
-        conn.commit()
-
-
-def mark_reminder_sent(review_id: str, which: str) -> None:
-    """which: '7day' | '2day' | 'overdue'"""
-    column = {
-        "7day": "REMINDER_7DAY_SENT_AT",
-        "2day": "REMINDER_2DAY_SENT_AT",
-        "overdue": "OVERDUE_ESCALATED_AT",
-    }[which]
-    with get_connection() as conn:
-        cur = conn.cursor()
-        cur.execute(
-            f"""UPDATE {config.REVIEW_INVENTORY_TABLE}
-                SET {column} = CURRENT_TIMESTAMP()
-                WHERE REVIEW_ID = %s""",
-            (review_id,),
-        )
-        _log_event(cur, review_id, "reminder_sent", which)
-        conn.commit()
+        return

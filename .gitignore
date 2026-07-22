@@ -6,3 +6,4 @@ automation/.env
 *.xlsx
 !automation/tests/fixtures/*.xlsx
 .pytest_cache/
+!automation/PRODUCTION_*.xlsx

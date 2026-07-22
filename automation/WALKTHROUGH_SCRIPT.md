@@ -37,6 +37,16 @@ TFS mailbox). Point out:
 **Say:** "This is the only thing that changes hands from governance. Everything
 after this point is automatic."
 
+## Step 1.5 — Clarify what "automated" actually means here (say this before Step 2)
+
+**Say:** "One thing worth being precise about: the spreadsheets themselves
+aren't automated — they're just Excel files. A person edits a cell directly,
+the same way you'd edit any spreadsheet. What's automated is that a
+scheduled job checks these files in the background, notices what changed,
+and reacts — updating Snowflake, picking the next assignee, and so on. The
+only human action anywhere in this process is editing a cell. Everything
+after that happens on its own."
+
 ## Step 2 — Show the Rotation Queue, before anything happens
 
 Open `PRODUCTION_rotation_queue.xlsx`. Point at:
@@ -114,6 +124,18 @@ WHERE REVIEW_ID NOT IN (SELECT REVIEW_ID FROM EDP_PRD_WSP.VPP_ANALYTICS.REVIEW_I
 
 ## If a manager asks...
 
+- **"How does editing a spreadsheet count as 'automated'?"** → It isn't the
+  edit itself that's automated — it's everything that happens *after* the
+  edit. A scheduled job checks the file, notices a change, and reacts
+  (syncing Snowflake, picking the next assignee, sending notifications).
+  The human touchpoint is intentionally as small as possible: one cell edit.
+- **"How does the initial list of data scientists get into the spreadsheet?"**
+  → One-time manual setup, done once before go-live — someone (currently
+  planned to be DB) enters the current DS team's names and emails. Open
+  decision: whether everyone starts tied at zero, or whether Last Assigned
+  Date gets seeded from real recent assignment history so the rotation
+  starts fair on day one rather than arbitrarily. Worth deciding before
+  rollout — flag this as a real open item, not settled yet.
 - **"What if governance's email format changes?"** → The parser is isolated
   to one file; updating it doesn't touch anything else.
 - **"What if the automation goes down?"** → Today's process has zero
@@ -123,6 +145,6 @@ WHERE REVIEW_ID NOT IN (SELECT REVIEW_ID FROM EDP_PRD_WSP.VPP_ANALYTICS.REVIEW_I
   managers editing the spreadsheet directly — access control can be refined
   once this moves past pilot.
 - **"When can this actually go live?"** → Be honest: blocked on the IT
-  mailbox app registration, the real network share path, and confirming the
-  49-day cycle assumption with governance. Everything else is built and
-  tested.
+  mailbox app registration, the real network share path, confirming the
+  49-day cycle assumption with governance, and deciding how the initial DS
+  roster gets seeded. Everything else is built and tested.

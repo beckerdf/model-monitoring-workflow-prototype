@@ -6,7 +6,7 @@ every run.
 """
 from datetime import date
 
-from . import review_inventory, notifications, config
+from . import review_inventory, file_notifications as notifications, config
 
 
 def check_reminders_and_escalations(today: date | None = None) -> None:

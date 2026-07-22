@@ -19,20 +19,44 @@ REVIEW_STATUS_PATH = Path(os.environ.get(
 
 # --- Snowflake connection (system of record) ---
 SNOWFLAKE_ACCOUNT = os.environ.get("SNOWFLAKE_ACCOUNT", "toyotafinancialservices_tfsprod.us-east-1.privatelink")
-SNOWFLAKE_USER = os.environ.get("SNOWFLAKE_USER", "")
+SNOWFLAKE_USER = os.environ.get("SNOWFLAKE_USER", "")  # your Okta/SSO login (often your email)
 SNOWFLAKE_ROLE = os.environ.get("SNOWFLAKE_ROLE", "EDP_PRD_WSP_VPP_ANALYTICS_SUPPORT")
 SNOWFLAKE_WAREHOUSE = os.environ.get("SNOWFLAKE_WAREHOUSE", "WSP_WH")
+# TFS uses Okta SSO -- the authenticator is the Okta URL itself, not the
+# generic "externalbrowser" value. No password needed/stored.
 SNOWFLAKE_AUTHENTICATOR = os.environ.get("SNOWFLAKE_AUTHENTICATOR", "https://tfs.okta.com/")
+SNOWFLAKE_PASSWORD = os.environ.get("SNOWFLAKE_PASSWORD", "")  # optional; prompted securely at runtime if not set
 SNOWFLAKE_DATABASE = os.environ.get("SNOWFLAKE_DATABASE", "EDP_PRD_WSP")
 SNOWFLAKE_SCHEMA = os.environ.get("SNOWFLAKE_SCHEMA", "VPP_ANALYTICS")
 
 REVIEW_INVENTORY_TABLE = f"{SNOWFLAKE_DATABASE}.{SNOWFLAKE_SCHEMA}.REVIEW_INVENTORY"
 
 # --- Mailbox (Microsoft Graph API) ---
+# Interim setup: monitoring DB's own TFS mailbox rather than a dedicated
+# shared governance mailbox, to avoid requesting a new mailbox + app-only
+# permissions from IT. This uses DELEGATED auth (DB signs in once, acting
+# as himself) rather than application permissions (which would need admin
+# approval to read/send from any mailbox in the tenant). Revisit once/if
+# a real shared mailbox is set up -- at that point this reverts to the
+# app-only pattern originally scoped.
 GRAPH_TENANT_ID = os.environ.get("GRAPH_TENANT_ID", "")
 GRAPH_CLIENT_ID = os.environ.get("GRAPH_CLIENT_ID", "")
-MONITORED_MAILBOX = os.environ.get("MONITORED_MAILBOX", "")
-GOVERNANCE_SENDER_FILTER = os.environ.get("GOVERNANCE_SENDER_FILTER", "")
+MONITORED_MAILBOX = os.environ.get("MONITORED_MAILBOX", "")  # DB's own TFS email address
+GOVERNANCE_SENDER_FILTER = os.environ.get(
+    "GOVERNANCE_SENDER_FILTER", ""
+)  # governance's from-address, so we only pick up their emails, not everything in the inbox
+
+# --- Git bridge (replaces Graph API mailbox access) ---
+# No Azure AD app registration available. Mailbox access is bridged via
+# Outlook VBA macros on DB's Windows laptop, exchanging files through this
+# same git repo. Inbound: VBA drops new Archer emails as .txt files and
+# pushes. Outbound: this job writes pending-notification .json files and
+# pushes; a second VBA routine polls, sends them via Outlook, and pushes
+# the removal back.
+BRIDGE_REPO_PATH = os.environ.get("BRIDGE_REPO_PATH", os.path.expanduser("~/prototype_model_monitoring"))
+BRIDGE_INBOUND_DIR = os.path.join(BRIDGE_REPO_PATH, "bridge", "inbound")
+BRIDGE_INBOUND_PROCESSED_DIR = os.path.join(BRIDGE_INBOUND_DIR, "processed")
+BRIDGE_OUTBOUND_DIR = os.path.join(BRIDGE_REPO_PATH, "bridge", "outbound")
 
 # --- Notification routing ---
 NATIONAL_MANAGER_EMAILS = [

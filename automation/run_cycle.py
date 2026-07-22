@@ -10,7 +10,7 @@ failure the way the manual version did.
 import logging
 from datetime import date
 
-from . import config, email_parser, graph_mailbox, notifications, reminders, review_inventory, rotation_queue, status_sync
+from . import config, email_parser, file_mailbox as graph_mailbox, file_notifications as notifications, reminders, review_inventory, rotation_queue, status_sync
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("model_monitoring_workflow")
